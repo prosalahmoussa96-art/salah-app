@@ -268,7 +268,7 @@ system_instruction += f"\n\n🚨 OBJECTIF ACTUEL : {intention}. Adapte le ton en
 if api_key:
     genai.configure(api_key=api_key)
     # On utilise Gemini 1.5 Flash (rapide et voit les images)
-    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
+    model = genai.GenerativeModel('gemini-1.5-flash-latest', system_instruction=system_instruction)
 
     # Gestion de l'historique du chat
     if "messages" not in st.session_state:
