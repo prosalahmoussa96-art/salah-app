@@ -267,8 +267,22 @@ system_instruction += f"\n\n🚨 OBJECTIF ACTUEL : {intention}. Adapte le ton en
 # --- MOTEUR IA ---
 if api_key:
     genai.configure(api_key=api_key)
+    # --- BLOC DIAGNOSTIC (A SUPPRIMER UNE FOIS QUE CA MARCHE) ---
+    with st.expander("Voir les modèles disponibles (Diagnostic)"):
+        try:
+            st.write("Liste des modèles accessibles avec votre clé :")
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    st.code(m.name)
+        except Exception as e:
+            st.error(f"Erreur de connexion API : {e}")
+    # ------------------------------------------------------------
     # On utilise Gemini 1.5 Flash (rapide et voit les images)
-    model = genai.GenerativeModel('gemini-1.5-flash-latest', system_instruction=system_instruction)
+   try:
+    model = genai.GenerativeModel('gemini-1.5-flash-001', system_instruction=system_instruction)
+except:
+    # Si ça plante, on essaie le modèle standard textuel
+    model = genai.GenerativeModel('gemini-pro', system_instruction=system_instruction)
 
     # Gestion de l'historique du chat
     if "messages" not in st.session_state:
