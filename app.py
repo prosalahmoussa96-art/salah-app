@@ -257,63 +257,77 @@ Elle contient mes écrits longs : lettres, théories révolutionnaires, proverbe
 - Fais preuve d'une ironie mordante mais intellectuelle.""",
     # ... ajoutez les autres
 }
-
 # Prompt par défaut si vide
 system_instruction = prompts_base.get(persona_choisi, "Tu es Salah. Réponds naturellement.")
 
 # Ajout de l'instruction d'intention
 system_instruction += f"\n\n🚨 OBJECTIF ACTUEL : {intention}. Adapte le ton en conséquence."
-
-# --- MOTEUR IA ---
+# --- MOTEUR IA (Nouveau bloc sécurisé) ---
 if api_key:
-    genai.configure(api_key=api_key)
-    # --- BLOC DIAGNOSTIC (A SUPPRIMER UNE FOIS QUE CA MARCHE) ---
-    with st.expander("Voir les modèles disponibles (Diagnostic)"):
+    # 1. Configuration de l'API
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        st.error(f"Erreur de clé API : {e}")
+
+    # 2. Outil de Diagnostic (Pour trouver le bon nom de modèle)
+    with st.expander("ℹ️ Voir les modèles disponibles (Diagnostic)"):
         try:
-            st.write("Liste des modèles accessibles avec votre clé :")
+            available_models = []
             for m in genai.list_models():
                 if 'generateContent' in m.supported_generation_methods:
-                    st.code(m.name)
+                    available_models.append(m.name)
+            st.write("Modèles détectés sur votre clé :")
+            st.code(available_models)
         except Exception as e:
-            st.error(f"Erreur de connexion API : {e}")
-    # ------------------------------------------------------------
-    # On utilise Gemini 1.5 Flash (rapide et voit les images)
-   try:
-    model = genai.GenerativeModel('gemini-1.5-flash-001', system_instruction=system_instruction)
-except:
-    # Si ça plante, on essaie le modèle standard textuel
-    model = genai.GenerativeModel('gemini-pro', system_instruction=system_instruction)
+            st.write("Pas encore connecté ou erreur API.")
 
-    # Gestion de l'historique du chat
+    # 3. Sélection du Modèle (Triple sécurité)
+    # On tente le Flash, sinon le Pro
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
+    except:
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash-latest', system_instruction=system_instruction)
+        except:
+            try:
+                # Modèle de secours (texte uniquement)
+                model = genai.GenerativeModel('gemini-pro', system_instruction=system_instruction)
+                st.warning("⚠️ Mode dégradé : Utilisation de 'gemini-pro' (pas d'images).")
+            except Exception as e:
+                st.error(f"Impossible de charger un modèle. Vérifiez la liste dans le diagnostic. Erreur : {e}")
+
+    # 4. Gestion de l'historique
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Affichage des messages précédents
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # --- ZONE DE SAISIE ---
+    # 5. Zone de Saisie et Réponse
     if prompt := st.chat_input("Copie son message ici..."):
-        # 1. Afficher le message utilisateur
+        # Affichage message utilisateur
         with st.chat_message("user"):
             st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        # 2. Générer la réponse
+        # Génération réponse IA
         with st.chat_message("assistant"):
-            with st.spinner("Salah réfléchit..."):
+            with st.spinner("Analyse du style en cours..."):
                 try:
-                    # Si image présente, on l'envoie avec le texte
+                    # Envoi avec image si présente
                     if image_data:
-                        prompt_complet = [prompt, image_data]
-                        response = model.generate_content(prompt_complet)
+                        # Note: gemini-pro ne supporte pas les images, cela plantera si on est en mode secours
+                        response = model.generate_content([prompt, image_data])
                     else:
                         response = model.generate_content(prompt)
                     
                     st.markdown(response.text)
                     st.session_state.messages.append({"role": "assistant", "content": response.text})
                 except Exception as e:
-                    st.error(f"Erreur : {e}")
+                    st.error(f"Une erreur est survenue : {e}")
+                    st.info("Conseil : Regardez le menu 'Diagnostic' ci-dessus pour voir le nom exact du modèle à utiliser.")
+
 else:
-    st.warning("👈 Veuillez entrer votre clé API Google dans la barre latérale pour commencer.")
+    st.warning("👈 Veuillez entrer votre clé API Google dans la barre latérale (à gauche) pour commencer.")
